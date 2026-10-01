@@ -1,0 +1,24 @@
+{
+  "name": "opencode-odometer",
+  "version": "0.1.0",
+  "description": "An OpenCode V2 plugin that brings accumulated session token usage into the model's context.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rndmcnlly/opencode-odometer.git"
+  },
+  "private": true,
+  "type": "module",
+  "exports": "./index.ts",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.0.21",
+    "@opencode/ai": "2.0.21"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "typescript": "^5.9.3"
+  }
+}
