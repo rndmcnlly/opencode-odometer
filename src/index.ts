@@ -6,19 +6,26 @@ type Tokens = { input: number; output: number; reasoning: number; cache: { read:
 type State = { version: 1; delivered: number[]; last?: { at: string; stops: number[]; text: string; messageID?: string } }
 type Descendants = { total: Tokens; count: number; missing: number; truncated?: boolean; unavailable?: boolean }
 const DEFAULT_STOPS = ["4M", "16M", "64M"]
+// Suffix letters denote a power-of-ten multiplier. Both cases are accepted,
+// following the SI convention of lowercase kilo and uppercase mega and above.
+const SCALES: Record<string, number> = { k: 3, m: 6, b: 9, t: 12, q: 15 }
 const PREFIX = "v1/session/"
 const DESCENDANT_LIMIT = 100
 
 export function parseStops(value: unknown = DEFAULT_STOPS): number[] {
   if (!Array.isArray(value)) throw new Error("opencode-odometer: stops must be an array such as [\"4M\", \"16M\", \"64M\"]")
   const stops = Array.from(value, (stop: unknown) => {
-    const match = typeof stop === "string" ? /^(\d+)(?:\.(\d+))?M$/.exec(stop) : null
+    // A stop string is digits with an optional fraction and an optional scale
+    // suffix: "4000000", "4000k", "4M", "0.004B". No suffix means raw units.
+    const match = typeof stop === "string" ? /^(\d+)(?:\.(\d+))?([kKmMbBtTqQ])?$/.exec(stop) : null
+    const scale = match?.[3] ? SCALES[match[3].toLowerCase()] : 0
     const fraction = (match?.[2] ?? "").replace(/0+$/, "")
-    // Parse decimal millions exactly: floating multiplication rejects values
-    // such as 0.000123M even though they denote a whole number of tokens.
-    const count = typeof stop === "number" ? stop : match && fraction.length <= 6
-      ? Number(BigInt(match[1]) * 1_000_000n + BigInt(fraction.padEnd(6, "0"))) : NaN
-    if (!Number.isSafeInteger(count) || count <= 0) throw new Error(`opencode-odometer: invalid stop ${JSON.stringify(stop)}; use positive integer tokens or strings like "4M" (M = 1,000,000)`)
+    // Parse scaled decimals exactly with integer arithmetic: floating
+    // multiplication rejects values such as 0.000123M even though they denote
+    // a whole number of tokens. A fraction longer than the scale is sub-unit.
+    const count = typeof stop === "number" ? stop : match && fraction.length <= scale
+      ? Number(BigInt(match[1]) * 10n ** BigInt(scale) + BigInt(fraction.padEnd(scale, "0") || "0")) : NaN
+    if (!Number.isSafeInteger(count) || count <= 0) throw new Error(`opencode-odometer: invalid stop ${JSON.stringify(stop)}; use positive integer tokens or strings like "4M" or "16k" (suffixes k, M, B, T, Q = 10^3 through 10^15, either case)`)
     return count
   })
   if (stops.some((stop, i) => i > 0 && stop <= stops[i - 1])) throw new Error("opencode-odometer: stops must be strictly increasing, without duplicates")
@@ -65,9 +72,13 @@ export function due(stops: number[], delivered: number[], total: number) {
   return stops.filter((stop) => stop <= total && !delivered.includes(stop))
 }
 
+// Largest-first so a value reports in its highest whole unit. The scale
+// suffixes here mirror the ones parseStops accepts.
+const UNITS: [number, string][] = [[1e15, "Q"], [1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "k"], [1, ""]]
+
 function format(n: number) {
-  const divisor = n >= 1_000_000 ? 1_000_000 : n >= 1_000 ? 1_000 : 1
-  return `${Number((n / divisor).toFixed(2))}${divisor === 1_000_000 ? "M" : divisor === 1_000 ? "k" : ""}`
+  const [divisor, suffix] = UNITS.find(([d]) => n >= d) ?? UNITS.at(-1)!
+  return `${Number((n / divisor).toFixed(2))}${suffix}`
 }
 
 function buckets(t: Tokens) {

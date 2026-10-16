@@ -61,6 +61,40 @@ test("decimal millions are exact at token and safe-integer boundaries", () => {
   for (const value of [["0.0000001M"], ["9007199254.740992M"], Array(1)]) assert.throws(() => parseStops(value), /opencode-odometer/)
 })
 
+test("a count has many spellings and one value", () => {
+  const distinct = (...spellings) => new Set(spellings.map((s) => parseStops([s])[0])).size
+  assert.equal(distinct("1000", "1k", "1K"), 1)
+  assert.equal(distinct("1000000", "1000k", "1M", "1m"), 1)
+  assert.equal(distinct("1000000000", "1000M", "1B"), 1)
+  assert.equal(distinct("1000000000000", "1000B", "1T"), 1)
+  assert.equal(distinct("4000000000000000", "4000T", "4Q"), 1)
+})
+
+test("a bare digit string is a whole-token count", () => {
+  assert.deepEqual(parseStops(["10000"]), [10_000])
+  for (const value of [["1000.5"], ["1e3"], ["0x10"], [" 1000"], ["1 k"]]) assert.throws(() => parseStops(value), /opencode-odometer/)
+})
+
+test("scaled decimals stay exact and never fall below a whole token", () => {
+  assert.deepEqual(parseStops(["0.1k"]), [100])
+  assert.deepEqual(parseStops(["9.007199254740991Q"]), [Number.MAX_SAFE_INTEGER])
+  for (const value of [["0.0001k"], ["0.0000001M"], ["9.007199254740992Q"]]) assert.throws(() => parseStops(value), /opencode-odometer/)
+})
+
+test("parser and formatter agree on every unit, and totals promote only on round numbers", () => {
+  const T = (n) => ({ input: 0, output: 0, reasoning: 0, cache: { read: n, write: 0 } })
+  const total = (n) => render(T(n), { total: T(0), count: 0, missing: 0 }, [], false).match(/main: total ([^;]+);/)[1]
+  for (const suffix of ["k", "M", "B", "T", "Q"]) {
+    assert.equal(total(parseStops([`1${suffix}`])[0]), `1${suffix}`)
+    assert.equal(total(parseStops([`1${suffix.toLowerCase()}`])[0]), `1${suffix}`)
+  }
+  assert.equal(total(999), "999")
+  assert.equal(total(1_000_000 - 1), "1000k") // units are chosen before rounding; the seam is deliberate
+  assert.equal(total(1_000_000), "1M")
+  assert.equal(total(1e15 - 1), "1000T")
+  assert.equal(total(1e15), "1Q")
+})
+
 test("coalesces crossed stops without an endless growth formula", () => {
   assert.deepEqual(due([4e6, 16e6, 64e6], [4e6], 100e6), [16e6, 64e6])
   assert.deepEqual(due([4e6], [4e6], 1e12), [])

@@ -36,7 +36,7 @@ opencode plugin update github:rndmcnlly/opencode-odometer#main
 
 Start with `["4M", "16M", "64M"]`, the defaults if you omit `stops`. Most short sessions will never reach a stop. For more frequent checkpoints, try powers of two: `["1M", "2M", "4M", "8M", "16M", "32M", "64M", "128M", "256M"]`.
 
-- `M` means one million tokens. Positive integer token counts also work.
+- A stop is a token count, either a plain positive integer (`10000`) or a number with a scale suffix: `k`, `M`, `B`, `T`, `Q` for thousands through quadrillions (10^3, 10^6, 10^9, 10^12, 10^15). Suffixes accept either case, so `4M` and `4m` are the same, and decimals are allowed where they land on whole tokens (`1.5M`, `0.5B`).
 - Stops count the main session's cumulative total: uncached input, cached input, cache writes, output, and reasoning. Repeated processing of context counts again. A session can pass a 4M stop while its context window is much smaller. Token counts also differ from dollar costs.
 - Child-session usage does not advance the main session's stops.
 - List stops in increasing order, without duplicates. Each is eligible once per session. If several stops have passed, one note covers them together. Existing sessions keep their accumulated usage.
