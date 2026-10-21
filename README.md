@@ -56,18 +56,18 @@ Synthetic messages may not appear in OpenCode or OpenChamber's ordinary transcri
 }
 ```
 
-Every checkpoint then includes:
+The first checkpoint in each session then includes:
 
 ```text
 Note from user's opencode-odometer configuration:
 I'm interested to know when these thresholds are passed, so please actively remark on them.
 ```
 
-A comment replaces the default instruction to remain silent. For a handoff nudge, you could write:
+A comment replaces the default instruction to remain silent. Later checkpoints contain compact telemetry without repeating the comment or contradicting it with a silence instruction. For a handoff nudge, you could write:
 
 > At this checkpoint, briefly discuss whether to continue here or prepare a handoff. If a bounded piece of work would suit a subagent, suggest that. Keep useful context in this conversation, and follow the existing delegation permissions. You don't have to stop or hand anything off.
 
-Omit `comment`, or leave it empty, to keep checkpoints quiet. Edits apply to future checkpoints after reload; they do not repeat earlier stops or rewrite earlier notes.
+Omit `comment`, or leave it empty, to keep checkpoints quiet. Stops can be edited after reload without repeating earlier stops. Comments are only included if the session has not yet had a checkpoint, including across plugin reloads; edits do not rewrite earlier notes.
 
 ## Development
 

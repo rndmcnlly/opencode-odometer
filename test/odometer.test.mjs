@@ -165,7 +165,7 @@ test("absent or blank comments retain the silent default", async () => {
   }
 })
 
-test("configured comments appear in every checkpoint without a contradictory silence instruction", async () => {
+test("configured comments appear only in the first checkpoint without later silence instructions", async () => {
   const comment = "I'm interested to know when these thresholds are passed, so please actively remark on them.\nKeep the remark brief."
   const h = await harness({ comment })
   try {
@@ -173,8 +173,10 @@ test("configured comments appear in every checkpoint without a contradictory sil
     h.sessions.get("ses_main").tokens = usage(17e6)
     await h.hooks.get("execute.after")(h.request())
     assert.equal(h.notices.length, 2)
+    assert.ok(h.notices[0].text.endsWith(`Note from user's opencode-odometer configuration:\n${comment}`))
+    assert.doesNotMatch(h.notices[1].text, /Note from user's|Keep the remark brief|Provider omissions|consider focused subagents/)
+    assert.equal(h.notices[1].text.split("\n").length, 4)
     for (const note of h.notices) {
-      assert.ok(note.text.endsWith(`Note from user's opencode-odometer configuration:\n${comment}`))
       assert.doesNotMatch(note.text, /No acknowledgement or usage commentary needed/)
       assert.equal(note.resume, false)
     }
@@ -182,6 +184,23 @@ test("configured comments appear in every checkpoint without a contradictory sil
     assert.equal(status.comment, comment)
     assert.equal(status.state.last.text, h.notices[1].text)
   } finally { await h.cleanup() }
+})
+
+test("first-checkpoint comments are per session and stay consumed across reloads", async () => {
+  const comment = "Please remark briefly on checkpoints."
+  const h = await harness({ comment })
+  await h.hooks.get("execute.after")(h.request())
+  await h.cleanup()
+  const reloaded = await harness({ comment, store: h.store, read: 17e6 })
+  try {
+    await reloaded.hooks.get("execute.after")(reloaded.request())
+    assert.equal(reloaded.notices.length, 1)
+    assert.doesNotMatch(reloaded.notices[0].text, /Please remark|Note from user's|No acknowledgement/)
+    reloaded.sessions.set("ses_other", { id: "ses_other", tokens: usage(4e6) })
+    await reloaded.hooks.get("execute.after")({ sessionID: "ses_other" })
+    assert.equal(reloaded.notices.length, 2)
+    assert.ok(reloaded.notices[1].text.endsWith(comment))
+  } finally { await reloaded.cleanup() }
 })
 
 test("non-string comments produce a useful configuration error", async () => {
@@ -344,7 +363,7 @@ test("optional descendant failures preserve a valid main notice and disclose mis
     const request = h.request()
     await h.hooks.get("execute.after")(request)
     assert.equal(h.notices.length, 1)
-    assert.match(h.notices[0].text, /Some child links could not be read/)
+    assert.match(h.notices[0].text, /child links unavailable/)
     assert.deepEqual(h.store.get("v1/session/ses_main").delivered, [4e6])
   } finally { console.warn = original; await h.cleanup() }
 })

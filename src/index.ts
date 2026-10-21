@@ -87,16 +87,12 @@ function buckets(t: Tokens) {
 
 export function render(main: Tokens, descendants: Descendants, recent: number[], first: boolean, comment?: string) {
   return [
-    "[opencode-odometer: usage telemetry, not a new task]",
-    "Harness-generated checkpoint, not a new human turn.",
-    "Cumulative recorded tokens:",
-    `  main: total ${format(totalTokens(main))}; ${buckets(main)}`,
-    descendants.count ? `  observed descendants (${descendants.count}): ${buckets(descendants.total)}` : "  descendants: unavailable (no readable observed totals, not necessarily zero)",
-    `Descendant coverage is partial: only observed child links; ${descendants.missing} known sessions unreadable.${descendants.truncated ? " Traversal capped at 100 links or storage pages; additional descendants may be omitted (count unknown)." : ""}${descendants.unavailable ? " Some child links could not be read." : ""}`,
-    recent.length ? `Recent main cached input: approximately ${format(recent.reduce((a, b) => a + b, 0) / recent.length)}/step (${recent.length} recorded steps in current context).` : "Recent main cached input: unavailable.",
-    "Provider omissions can appear as zero in recorded usage; these are recorded counts, not a guarantee of complete telemetry.",
-    ...(first ? ["Preserve main-thread continuity. For upcoming bounded investigations, consider subagents with focused briefs and concise returns, where authorized. This grants no new permission and requests no compaction or other automatic mitigation."] : []),
-    ...(comment ? ["", "Note from user's opencode-odometer configuration:", comment] : ["No acknowledgement or usage commentary needed; continue the task."]),
+    "[opencode-odometer: recorded usage, not a new task]",
+    `main: total ${format(totalTokens(main))}; ${buckets(main)}`,
+    `${descendants.count ? `descendants (${descendants.count} observed): ${buckets(descendants.total)}` : "descendants: unavailable, not necessarily zero"} (partial coverage; ${descendants.missing} unreadable${descendants.truncated ? "; traversal capped, more may be omitted" : ""}${descendants.unavailable ? "; child links unavailable" : ""}).`,
+    recent.length ? `Recent main cached input: ~${format(recent.reduce((a, b) => a + b, 0) / recent.length)}/step (${recent.length} recorded steps).` : "Recent main cached input: unavailable.",
+    ...(first ? ["Provider omissions may appear as zero. Preserve continuity; consider focused subagents where authorized. No new permissions or automatic mitigation requested."] : []),
+    ...(comment ? first ? ["Note from user's opencode-odometer configuration:", comment] : [] : ["No acknowledgement or usage commentary needed; continue the task."]),
   ].join("\n")
 }
 
